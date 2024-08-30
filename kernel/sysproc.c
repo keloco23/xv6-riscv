@@ -22,6 +22,40 @@ sys_getpid(void)
 }
 
 uint64
+sys_getppid(void)
+{
+    struct proc *p = myproc(); // Obtener el proceso actual
+    if (p->parent)             // Verificar si tiene un proceso padre
+        return p->parent->pid; // Retornar el PID del proceso padre
+    return 0;                  // Si no tiene padre (por ejemplo, el proceso init)
+}
+
+uint64
+sys_getancestor(void)
+{
+    int n = 0;  // Inicializamos n
+
+    // Obtener el argumento de la llamada al sistema
+    argint(0, &n);
+
+    if (n < 0) {
+        return -1;  // Retorna -1 si n es inválido
+    }
+
+    struct proc *p = myproc();  // Obtén el proceso actual
+
+    // Recorre hacia atrás por la cantidad de ancestros solicitada
+    for (int i = 0; i < n; i++) {
+        if (p->parent == 0) {  // Si no hay más ancestros, retorna -1
+            return -1;
+        }
+        p = p->parent;  // Recorre al proceso padre
+    }
+
+    return p->pid;  // Retorna el PID del ancestro correspondiente
+}
+
+uint64
 sys_fork(void)
 {
   return fork();
