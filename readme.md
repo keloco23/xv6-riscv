@@ -1,14 +1,10 @@
-## Informe - Tarea 2
-
-### Objetivo
-
-El objetivo de esta tarea fue modificar el **scheduler** de xv6 para implementar un sistema de prioridades, de manera que los procesos con mayor prioridad sean ejecutados antes que los de menor prioridad. La prioridad debe ser controlada dinámicamente con el uso de un campo `boost`, que modifica la prioridad del proceso durante su ejecución.
+## Informe tarea 2
 
 ### Modificaciones realizadas
 
 #### 1. **Estructura de la prioridad y boost**
 
-Para implementar el sistema de prioridades, agregamos dos campos nuevos a la estructura `proc` en el archivo `proc.h`:
+Para implementar el sistema de prioridades, agregué dos campos nuevos a la estructura `proc` en el archivo `proc.h`:
 
 ```c
 struct proc {
@@ -19,7 +15,7 @@ struct proc {
 };
 ```
 
-Luego, en la función `allocproc()` en el archivo `proc.c`, inicializamos estos campos:
+Luego, en la función `allocproc()` en el archivo `proc.c`, inicialicé estos campos:
 
 ```c
 p->priority = 0;  // La prioridad comienza en 0
@@ -28,7 +24,7 @@ p->boost = 1;     // El boost comienza en 1
 
 #### 2. **Modificación del scheduler**
 
-El scheduler fue modificado para que actualice la prioridad de cada proceso en cada iteración del ciclo principal. Se implementó la lógica que aumenta o disminuye la prioridad según el valor del `boost`.
+Modifiqué el scheduler para que actualizara la prioridad de cada proceso en cada iteración del ciclo principal. Implementé una lógica para aumentar o disminuir la prioridad dependiendo del valor del `boost`.
 
 El código modificado dentro de la función `scheduler()` es el siguiente:
 
@@ -81,7 +77,7 @@ Este código actualiza la prioridad de cada proceso basado en su `boost`. Si la 
 
 #### 3. **Programa de prueba**
 
-Se creó un programa de prueba (`priority_test.c`) que genera 20 procesos, cada uno imprimiendo su PID al ser ejecutado. Además, para evitar que los procesos impriman simultáneamente y se mezclen sus mensajes, se implementó un `sleep()` proporcional al índice del proceso.
+Creé un programa de prueba (`priority_test.c`) que genera 20 procesos, cada uno imprimiendo su PID al ser ejecutado. Para evitar que los procesos imprimieran simultáneamente y desordenaran los mensajes, implementé un `sleep()` proporcional al índice del proceso.
 
 ```c
 #include "kernel/types.h"
@@ -120,15 +116,11 @@ main(void)
 ### Dificultades encontradas y soluciones
 
 1. **Problemas de salida desordenada**: 
-   La ejecución concurrente de múltiples procesos causaba que la salida en la consola se mezclara, haciendo difícil entender qué proceso estaba imprimiendo en un momento dado. 
+   Al ejecutar múltiples procesos concurrentemente, la salida en la consola se mezclaba, haciendo difícil entender qué proceso estaba imprimiendo en un momento dado.
    
-   **Solución**: Se utilizó la función `sleep()` en los procesos hijos para que esperaran tiempos diferentes antes de imprimir, reduciendo la interferencia entre los mensajes.
+   **Solución**: Utilicé la función `sleep()` en los procesos hijos para que esperaran diferentes intervalos de tiempo antes de imprimir, reduciendo así la posibilidad de interferencias entre los mensajes.
 
 2. **Error de compilación (`No rule to make target`)**: 
-   Hubo un error en el archivo `Makefile` al agregar el nuevo programa de prueba, debido a una barra invertida malformada.
+   Al agregar el nuevo programa de prueba al `Makefile`, hubo un error debido a una barra invertida malformada.
    
-   **Solución**: Se corrigió la barra invertida y se verificó la correcta alineación de las líneas en el archivo `Makefile`.
-
-### Conclusión
-
-Se implementó con éxito un scheduler basado en prioridades en xv6, permitiendo que los procesos sean ejecutados de acuerdo con su nivel de prioridad. Además, se probó el sistema con un programa que genera múltiples procesos y se observó el orden de ejecución correcto gracias a la lógica de prioridades y boost implementada. La sincronización de la salida fue un reto inicial, pero se solucionó con la introducción de retardos específicos entre los procesos.
+   **Solución**: Corregí la barra invertida y verifiqué la correcta alineación de las líneas en el `Makefile`, lo que resolvió el problema.
