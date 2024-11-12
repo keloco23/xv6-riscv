@@ -6,6 +6,9 @@
 #include "spinlock.h"
 #include "proc.h"
 
+int mprotect(void *addr, int len);
+int munprotect(void *addr, int len);
+
 uint64
 sys_exit(void)
 {
@@ -90,4 +93,28 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64 sys_mprotect(void) {
+    uint64 addr;
+    int len;
+
+    // Acceder a los argumentos directamente
+    if (fetchaddr(0, &addr) < 0 || fetchint(1, &len) < 0) {
+        return -1; // Error si los argumentos no son válidos
+    }
+
+    return mprotect((void *)addr, len); // Llamada a la implementación real de mprotect
+}
+
+uint64 sys_munprotect(void) {
+    uint64 addr;
+    int len;
+
+    // Acceder a los argumentos directamente
+    if (fetchaddr(0, &addr) < 0 || fetchint(1, &len) < 0) {
+        return -1; // Error si los argumentos no son válidos
+    }
+
+    return munprotect((void *)addr, len); // Llamada a la implementación real de munprotect
 }

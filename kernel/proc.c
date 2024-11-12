@@ -693,3 +693,47 @@ procdump(void)
     printf("\n");
   }
 }
+
+pte_t* pte_lookup(pagetable_t pagetable, uint64 va) {
+    pagetable_t pt = pagetable;
+    for (int level = 2; level > 0; level--) {
+        pte_t *pte = &pt[PX(level, va)];
+        if ((*pte & PTE_V) == 0) {
+            return 0;  // No encontrado
+        }
+        pt = (pagetable_t)PTE2PA(*pte);
+    }
+    return &pt[PX(0, va)];
+}
+
+int mprotect(void *addr, int len) {
+    uint64 start_addr = PGROUNDDOWN((uint64)addr);
+    uint64 end_addr = (uint64)addr + len;
+    int num_pages = (PGROUNDUP(end_addr) - start_addr) / PGSIZE;
+
+    for (int i = 0; i < num_pages; i++) {
+        uint64 va = start_addr + i * PGSIZE;
+        pte_t *pte = pte_lookup(myproc()->pagetable, va);
+        if (!pte || !(*pte & PTE_V)) {
+            return -1; // Error si la página es inválida o no está presente
+        }
+        *pte &= ~PTE_W; // Desactivar el bit de escritura para hacerla de solo lectura
+    }
+    return 0;
+}
+
+int munprotect(void *addr, int len) {
+    uint64 start_addr = PGROUNDDOWN((uint64)addr);
+    uint64 end_addr = (uint64)addr + len;
+    int num_pages = (PGROUNDUP(end_addr) - start_addr) / PGSIZE;
+
+    for (int i = 0; i < num_pages; i++) {
+        uint64 va = start_addr + i * PGSIZE;
+        pte_t *pte = pte_lookup(myproc()->pagetable, va);
+        if (!pte || !(*pte & PTE_V)) {
+            return -1; // Error si la página es inválida o no está presente
+        }
+        *pte |= PTE_W; // Activar el bit de escritura para hacerla de lectura/escritura
+    }
+    return 0;
+}
