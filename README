@@ -1,49 +1,106 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
+# README
 
-ACKNOWLEDGMENTS
+---
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)).  See also https://pdos.csail.mit.edu/6.1810/, which provides
-pointers to on-line resources for v6.
+## Funcionamiento y lógica
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+El objetivo principal fue implementar la funcionalidad de `chmod`, que permite cambiar los permisos de un archivo. Además, desarrollé `chmodtest.c` para probar escenarios comunes relacionados con permisos.
 
-We are also grateful for the bug reports and patches contributed by
-Takahiro Aoyagi, Marcelo Arroyo, Silas Boyd-Wickizer, Anton Burtsev,
-carlclone, Ian Chen, Dan Cross, Cody Cutler, Mike CAT, Tej Chajed,
-Asami Doi,Wenyang Duan, eyalz800, Nelson Elhage, Saar Ettinger, Alice
-Ferrazzi, Nathaniel Filardo, flespark, Peter Froehlich, Yakir Goaron,
-Shivam Handa, Matt Harvey, Bryan Henry, jaichenhengjie, Jim Huang,
-Matúš Jókay, John Jolly, Alexander Kapshuk, Anders Kaseorg, kehao95,
-Wolfgang Keller, Jungwoo Kim, Jonathan Kimmitt, Eddie Kohler, Vadim
-Kolontsov, Austin Liew, l0stman, Pavan Maddamsetti, Imbar Marinescu,
-Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark
-Morrissey, mtasm, Joel Nider, Hayato Ohhashi, OptimisticSide,
-phosphagos, Harry Porter, Greg Price, RayAndrew, Jude Rich, segfault,
-Ayan Shafqat, Eldar Sehayek, Yongming Shen, Fumiya Shigemitsu, snoire,
-Taojie, Cam Tenny, tyfkda, Warren Toomey, Stephen Tu, Alissa Tung,
-Rafael Ubal, Amane Uehara, Pablo Ventura, Xi Wang, WaheedHafez,
-Keiichi Watanabe, Lucas Wolf, Nicolas Wolovick, wxdao, Grant Wu, x653,
-Jindong Zhang, Icenowy Zheng, ZhUyU1997, and Zou Chang Wei.
+1. **Comando de usuario (`chmod`)**:
+   - El usuario puede ejecutar `chmod <mode> <file>` para cambiar los permisos de un archivo específico.
+   - Los permisos están representados por un número entero que se guarda en los metadatos del archivo (en el `dinode`).
 
-The code in the files that constitute xv6 is
-Copyright 2006-2024 Frans Kaashoek, Robert Morris, and Russ Cox.
+2. **Pruebas con `chmodtest.c`**:
+   - Este archivo verifica el comportamiento correcto de `chmod` en múltiples casos:
+     - Creación de un archivo.
+     - Cambio de permisos.
+     - Intento de modificar archivos inmutables.
+   - Utiliza llamadas al sistema como `chmod` y `open` para interactuar con el sistema de archivos.
 
-ERROR REPORTS
+3. **Lógica del kernel**:
+   - Cuando se ejecuta `chmod`, el sistema realiza una llamada al sistema (`sys_chmod`) que verifica los argumentos, bloquea el inode correspondiente y actualiza los permisos en el disco.
 
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu).  The main purpose of xv6 is as a teaching
-operating system for MIT's 6.1810, so we are more interested in
-simplifications and clarifications than new features.
+4. **Seguridad**:
+   - Los permisos se verifican en el nivel del kernel para evitar modificaciones accidentales o maliciosas. Por ejemplo, algunos archivos tienen permisos inmutables que no pueden modificarse con `chmod`.
 
-BUILDING AND RUNNING XV6
+---
 
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu.  Once they are installed, and in your shell
-search path, you can run "make qemu".
+## Explicación de las modificaciones realizadas
+
+### 1. **Estructura del sistema de archivos**
+   - **`struct dinode`**: Añadí un campo `perm` (int) en la estructura del `dinode` para almacenar los permisos de cada archivo.
+   - **Alineación de tamaño**: Para evitar errores de alineación en disco, ajusté el tamaño del `dinode` con un campo de relleno (`padding`).
+
+### 2. **Implementación del sistema de llamadas**
+   - En **`sys_chmod`** (en `kernel/sysfile.c`):
+     - Verifiqué los argumentos de entrada (`path` y `mode`).
+     - Bloqueé el inode del archivo con `ilock`.
+     - Accedí al bloque del `dinode` correspondiente, verifiqué los permisos actuales y los actualicé.
+     - Sincronizé los cambios con `log_write` y liberé el inode.
+   - Añadí `sys_chmod` a los archivos relevantes del kernel:
+     - `kernel/syscall.c`
+     - `kernel/syscall.h`
+     - `user/user.h`
+     - `user/usys.pl`
+
+### 3. **Comando de usuario**
+   - Implementé `chmod` como un archivo en `user/chmod.c`.
+   - Incluye lógica para validar los argumentos de usuario y realizar la llamada al sistema.
+
+### 4. **Pruebas con `chmodtest.c`**
+   - Creé un archivo `chmodtest.c` en el directorio `user` para verificar:
+     - La creación exitosa de un archivo con permisos iniciales.
+     - Cambios de permisos válidos.
+     - Restricción de cambios en archivos marcados como inmutables.
+   - El archivo utiliza funciones como `open`, `chmod` y mensajes impresos (`printf`) para verificar los resultados.
+   - Ejemplo del código:
+     ```c
+     #include "kernel/types.h"
+     #include "kernel/stat.h"
+     #include "user/user.h"
+     #include "kernel/fcntl.h"
+
+     int main() {
+         int fd = open("testfile", O_CREATE | O_RDWR);
+         if (fd < 0) {
+             printf("Error: could not create file.\n");
+             exit(1);
+         }
+         printf("File created successfully.\n");
+
+         if (chmod("testfile", 1) < 0) {
+             printf("Error: chmod failed.\n");
+             exit(1);
+         }
+         printf("Permissions changed successfully.\n");
+
+         exit(0);
+     }
+     ```
+
+### 5. **Modificaciones al sistema de compilación**
+   - Modifiqué el `Makefile` para incluir el nuevo comando `chmod` y el archivo de pruebas `chmodtest.c`.
+
+---
+
+## Dificultades encontradas y soluciones implementadas
+
+### 1. **Error en la alineación del tamaño del `dinode`**
+   - **Problema**: Al añadir el campo `perm`, el tamaño del `dinode` ya no era divisible por el tamaño del bloque (`BSIZE`), lo que provocaba errores durante la inicialización.
+   - **Solución**: Añadí un campo de relleno (`padding`) para garantizar que el tamaño del `dinode` sea divisible por `BSIZE`.
+
+### 2. **Errores de compilación relacionados con `sys_chmod`**
+   - **Problema**: Inicialmente, el compilador lanzaba errores al intentar usar funciones o estructuras no declaradas.
+   - **Solución**: Aseguré que todas las declaraciones necesarias estuvieran en los encabezados correctos (`fs.h`, `syscall.h`, etc.) y que las funciones se implementaran correctamente.
+
+### 3. **Pánico en el kernel: "log_write outside of trans"**
+   - **Problema**: Intentaba escribir en el log fuera de una transacción.
+   - **Solución**: Encapsulé las operaciones críticas dentro de una transacción para cumplir con las reglas del sistema de logs.
+
+### 4. **Errores al compilar `chmodtest.c`**
+   - **Problema**: Conflictos entre las definiciones de `fcntl.h` en xv6 y las del sistema host.
+   - **Solución**: Incluí la versión de `fcntl.h` específica de xv6 y ajusté el código para evitar conflictos.
+
+### 5. **Verificación del funcionamiento de `chmod`**
+   - **Problema**: No estaba claro si los permisos se aplicaban correctamente.
+   - **Solución**: Usé múltiples `printf` para depurar, verificar y ajustar el código hasta que las pruebas pasaron exitosamente.
